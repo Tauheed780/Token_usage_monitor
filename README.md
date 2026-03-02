@@ -20,9 +20,11 @@ Unlike other monitoring tools that require opening separate dashboards or browse
 All processing happens locally on your device - your sessions remain completely private.
 
 ### Supported Models
-1. Opus 4.5
-2. Sonnet 4.5
-3. Haiku 4.5
+1. **Opus 4.6**
+2. **Sonnet 4.6**
+3. Opus 4.5
+4. Sonnet 4.5
+5. Haiku 4.5
 
 Other models will still have accurate token counting, just not dollar cost.
 

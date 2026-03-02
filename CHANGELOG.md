@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-03-02
+- Added support for Opus 4.6 and Sonnet 4.6 variants.
+
 ## [0.1.1] - 2026-02-05
 
 ### Added

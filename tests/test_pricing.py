@@ -37,6 +37,16 @@ class TestModelPricingLookup:
         pricing = _get_pricing("sonnet")
         assert pricing.input_base == 0.0  # Returns zero-cost for unknown
 
+    def test_opus_4_6_model_match(self):
+        pricing = _get_pricing("claude-opus-4-6")
+        assert pricing.input_base == 5.00
+        assert pricing.tiered == True
+
+    def test_sonnet_4_6_model_match(self):
+        pricing = _get_pricing("claude-sonnet-4-6")
+        assert pricing.input_base == 3.00
+        assert pricing.tiered == True
+
     def test_none_model_name_raises_error(self):
         # None model causes AttributeError - this is a known edge case
         with pytest.raises(AttributeError):
@@ -90,6 +100,50 @@ class TestTieredPricing:
         # Tier rates apply: input*6.00 + cache_write*7.50 + cache_read*0.60
         expected = 0.60 + 0.375 + 0.036
         assert cost == pytest.approx(expected)
+
+    def test_opus_4_6_below_tier_break(self):
+        cost = _calculate_total_cost(
+            model="claude-opus-4-6",
+            input_tokens=100_000,
+            output_tokens=50_000,
+            cache_write_tokens=0,
+            cache_read_tokens=0
+        )
+        # (100k/1M * 5.00) + (50k/1M * 25.00) = 0.50 + 1.25
+        assert cost == pytest.approx(1.75)
+
+    def test_opus_4_6_above_tier_break(self):
+        cost = _calculate_total_cost(
+            model="claude-opus-4-6",
+            input_tokens=250_000,
+            output_tokens=100_000,
+            cache_write_tokens=0,
+            cache_read_tokens=0
+        )
+        # (250k/1M * 10.00) + (100k/1M * 37.50) = 2.50 + 3.75
+        assert cost == pytest.approx(6.25)
+
+    def test_sonnet_4_6_below_tier_break(self):
+        cost = _calculate_total_cost(
+            model="claude-sonnet-4-6",
+            input_tokens=100_000,
+            output_tokens=50_000,
+            cache_write_tokens=0,
+            cache_read_tokens=0
+        )
+        # (100k/1M * 3.00) + (50k/1M * 15.00) = 0.30 + 0.75
+        assert cost == pytest.approx(1.05)
+
+    def test_sonnet_4_6_above_tier_break(self):
+        cost = _calculate_total_cost(
+            model="claude-sonnet-4-6",
+            input_tokens=250_000,
+            output_tokens=100_000,
+            cache_write_tokens=0,
+            cache_read_tokens=0
+        )
+        # (250k/1M * 6.00) + (100k/1M * 22.50) = 1.50 + 2.25
+        assert cost == pytest.approx(3.75)
 
     def test_opus_no_tiering(self):
         cost_small = _calculate_total_cost("opus-4-5", 10_000, 5_000, 0, 0)
@@ -193,6 +247,24 @@ class TestModelPricingAttributes:
 
     def test_sonnet_has_tier_fields(self):
         pricing = _get_pricing("sonnet-4-5")
+        assert pricing.tiered == True
+        assert pricing.tier_break == 200_000
+        assert pricing.input_tier == 6.00
+        assert pricing.output_tier == 22.50
+        assert pricing.cache_write_tier == 7.50
+        assert pricing.cache_read_tier == 0.60
+
+    def test_opus_4_6_tier_fields(self):
+        pricing = _get_pricing("opus-4-6")
+        assert pricing.tiered == True
+        assert pricing.tier_break == 200_000
+        assert pricing.input_tier == 10.00
+        assert pricing.output_tier == 37.50
+        assert pricing.cache_write_tier == 12.50
+        assert pricing.cache_read_tier == 1.00
+
+    def test_sonnet_4_6_tier_fields(self):
+        pricing = _get_pricing("sonnet-4-6")
         assert pricing.tiered == True
         assert pricing.tier_break == 200_000
         assert pricing.input_tier == 6.00

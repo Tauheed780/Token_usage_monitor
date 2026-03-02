@@ -18,6 +18,34 @@ class ModelPricing:
     cache_write_tier: Optional[int] = None
     cache_read_tier: Optional[int] = None
 
+OPUS_4_6 = ModelPricing(
+    input_base=5.00,
+    output_base=25.00,
+    cache_write=6.25,
+    cache_read=0.50,
+    tiered=True,
+    tier_break=200_000,
+    input_tier=10.00,
+    output_tier=37.50,
+    cache_write_tier=12.50,
+    cache_read_tier=1
+)
+
+
+SONNET_4_6 = ModelPricing(
+    input_base=3.00,
+    output_base=15.00,
+    cache_write=3.75,
+    cache_read=0.30,
+    tiered=True,
+    tier_break=200_000,
+    input_tier=6.00,
+    output_tier=22.50,
+    cache_write_tier=7.50,
+    cache_read_tier=0.60
+)
+
+
 OPUS_4_5 = ModelPricing(
     input_base=5.00,
     output_base=25.00,
@@ -46,6 +74,8 @@ HAIKU_4_5 = ModelPricing(
 )
 
 MODEL_PRICING: Dict[str, ModelPricing] = {
+    "opus-4-6": OPUS_4_6,
+    "sonnet-4-6": SONNET_4_6,
     "opus-4-5": OPUS_4_5,
     "sonnet-4-5": SONNET_4_5,
     "haiku-4-5": HAIKU_4_5
