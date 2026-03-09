@@ -92,65 +92,71 @@ class LogReader:
 
             Returns:
                 List of objects of data class that contains input and output tokens
+
+            Raises:
+                FileNotFoundError to graciously handle cases where Claude deletes or rotates these files
         """
         cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_back)
         jsonl_files_path = self.get_jsonl_files()
         for json_file in jsonl_files_path:
-            with open(json_file, encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
+            try:
+                with open(json_file, encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
 
-                    if not line:
-                        continue
+                        if not line:
+                            continue
 
-                    try:
-                        data = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
 
-                    message = data.get("message")
-                    timestamp = data.get("timestamp")
+                        message = data.get("message")
+                        timestamp = data.get("timestamp")
 
-                    if not timestamp: 
-                        continue
+                        if not timestamp: 
+                            continue
 
-                    timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    if timestamp < cutoff_time:
-                        continue
+                        timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        if timestamp < cutoff_time:
+                            continue
 
-                    if isinstance(message, dict):
-                        # uniquely identify each request within each message
-                        message_id = message.get("id")
-                        request_id = data.get("requestId")
-                        unique_id = f"{message_id}:{request_id}"
+                        if isinstance(message, dict):
+                            # uniquely identify each request within each message
+                            message_id = message.get("id")
+                            request_id = data.get("requestId")
+                            unique_id = f"{message_id}:{request_id}"
 
-                        if unique_id in self.processed_entries: continue
+                            if unique_id in self.processed_entries: continue
 
-                        model = message.get("model")
-                        usage = message.get("usage")
-                        if isinstance(usage, dict):
-                            input_tokens = usage.get("input_tokens", 0)
-                            output_tokens = usage.get("output_tokens", 0)
-                            cache_write_tokens = usage.get("cache_creation_input_tokens", 0)
-                            cache_read_tokens = usage.get("cache_read_input_tokens", 0)
+                            model = message.get("model")
+                            usage = message.get("usage")
+                            if isinstance(usage, dict):
+                                input_tokens = usage.get("input_tokens", 0)
+                                output_tokens = usage.get("output_tokens", 0)
+                                cache_write_tokens = usage.get("cache_creation_input_tokens", 0)
+                                cache_read_tokens = usage.get("cache_read_input_tokens", 0)
 
-                            total_cost = _calculate_total_cost(
-                                model=model,
-                                input_tokens=input_tokens,
-                                output_tokens=output_tokens,
-                                cache_write_tokens=cache_write_tokens,
-                                cache_read_tokens=cache_read_tokens,
-                            )
-
-                            user_usage = UsageData(
-                                model=model,
-                                input_tokens=input_tokens,
-                                output_tokens=output_tokens,
-                                cache_write_tokens=cache_write_tokens,
-                                cache_read_tokens=cache_read_tokens,
-                                cost=total_cost,
-                                timestamp=timestamp
+                                total_cost = _calculate_total_cost(
+                                    model=model,
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                    cache_write_tokens=cache_write_tokens,
+                                    cache_read_tokens=cache_read_tokens,
                                 )
-                            self.usage_data.append(user_usage)
-                        self.processed_entries.add(unique_id)
+
+                                user_usage = UsageData(
+                                    model=model,
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                    cache_write_tokens=cache_write_tokens,
+                                    cache_read_tokens=cache_read_tokens,
+                                    cost=total_cost,
+                                    timestamp=timestamp
+                                    )
+                                self.usage_data.append(user_usage)
+                            self.processed_entries.add(unique_id)
+            except FileNotFoundError:
+                continue
         return self.usage_data

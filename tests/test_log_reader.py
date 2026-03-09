@@ -450,6 +450,17 @@ class TestEdgeCases:
 
         assert len(usage_data) == 2
 
+    def test_skips_file_deleted_between_glob_and_open(self, temp_jsonl_dir):
+        """File that disappears between glob and open should be silently skipped"""
+        ghost_file = temp_jsonl_dir / "ghost.jsonl"
+        # Don't create the file — simulates deletion after glob
+
+        reader = LogReader()
+        with patch.object(reader, 'get_jsonl_files', return_value=[ghost_file]):
+            usage_data = reader.parse_json_files()  # should not raise
+
+        assert len(usage_data) == 0
+
     def test_cost_calculated_and_stored(self, temp_jsonl_dir):
         """UsageData should have cost field calculated from tokens"""
         jsonl_file = temp_jsonl_dir / "cost.jsonl"
