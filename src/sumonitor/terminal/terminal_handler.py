@@ -1,6 +1,6 @@
 ### Manages the terminal and displays usage data for current session
 
-import sys, fcntl, termios, struct
+import sys, fcntl, termios, struct, os
 import time, threading
 
 from ..data.log_reader import LogReader
@@ -14,6 +14,9 @@ class TerminalHandler:
         self.p = pexpect_obj
         self.log_reader = log_reader
         self.plan = plan
+        self.output_lock = threading.Lock()
+        self.real_os_write = os.write
+        os.write = self.locked_os_write
         self.overlay_thread = threading.Thread(target=self.draw_overlay, daemon=True)
         self.overlay_thread.start()
 
@@ -42,7 +45,7 @@ class TerminalHandler:
         """Fetch total usage metrics for the current session
 
             Returns:
-                Formatted string that contains (Model | Input tokens, cost | Output tokens, cost)
+                Formatted string that contains (Tokens/limit | Session reset time | Messages/limit | $ cost/limitCan)
         """
         usage_data = self.log_reader.parse_json_files()
         session_data = SessionData(usage_data=usage_data, plan=self.plan)
@@ -61,6 +64,22 @@ class TerminalHandler:
                 f"Cost: {total_cost:.2f}/{plan_limits.cost} $"
             )
         return ""
+    
+    def locked_os_write(self, fd, data) -> int:
+        """Writes Claude outputs through a lock to prevent interleaving between 
+            pexpect's output and the overlay. Non-stdout writes pass through without locking.
+
+            Args:
+                fd: file descriptor to write to
+                data: bytes to write
+
+            Returns:
+                Number of bytes written from os.write
+        """
+        if fd == 1:
+            with self.output_lock:
+                return self.real_os_write(fd, data)
+        return self.real_os_write(fd, data)
         
     def draw_overlay(self):
         """Filter that adds overlay to the bottom of terminal
@@ -69,10 +88,6 @@ class TerminalHandler:
                 Text in bottom line of terminal describing costs of the current input
         """
         ### ANSI CODES:
-        ### ESC is \x1b in hex. So ESC 7 will be \x1b7 to save cursor position.
-        ### ESC[#B to move cursor down # lines
-        ### ESC 7 save cursor position
-        ### ESC 8 mvoe cursor to last saved position
         ### ref https://stackoverflow.com/questions/11023929/using-the-alternate-screen-in-a-bash-script
         ### ref https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
 
@@ -87,14 +102,16 @@ class TerminalHandler:
 
                 # cursor manipulation and adding text
                 overlay_bytes = (
-                    # b'\x1b[0J' +
-                    '\x1b[s'             # save cursor position
-                    f'\x1b[{rows};1H' +  # move to last row
+                    '\x1b[s'                 # save cursor position
+                    f'\x1b[{rows-1};1H' +    # move to second-to-last row
+                    '\x1b[K' +               # clear that line
+                    f'\x1b[{rows};1H' +      # move to last row
                     '\x1b[K' +           # clear the entire line
                     text +               # write the text onto the line
                     '\x1b[u'             # move cursor to saved position
                 )
-                sys.stdout.write(overlay_bytes)
-                sys.stdout.flush()
+                with self.output_lock:
+                    sys.stdout.write(overlay_bytes)
+                    sys.stdout.flush()
 
             time.sleep(1.0) # read logs every other second
