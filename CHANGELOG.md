@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-03-18
+- Added guardrails during I/O operations to avoid application crash if Claude changes the files mid-read
+- Stop writing usage data while Claude is writing to prevent interleaving of texts
+
 ## [0.1.2] - 2026-03-02
 - Added support for Opus 4.6 and Sonnet 4.6 variants.
 
