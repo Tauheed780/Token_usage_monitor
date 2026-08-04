@@ -10,7 +10,7 @@
 
 Unlike other monitoring tools that require opening separate dashboards or browsers, **sumonitor displays your usage data right in your terminal in real-time** as you work. No context switching.
 
-![sumonitor usage](usage.gif)
+![sumonitor usage]()
 
 - Live token counts (input, output, cache)
 - Cost tracking with tiered pricing
